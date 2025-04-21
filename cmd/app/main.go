@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/whaleship/io-bound/internal/handlers"
 	"github.com/whaleship/io-bound/internal/service"
@@ -16,5 +18,7 @@ func main() {
 
 	app.Get("/tasks/:id", tskHandl.HandleGetTask)
 
-	app.Listen(":3000")
+	if err := app.Listen(":3000"); err != nil {
+		log.Fatalln(err)
+	}
 }
