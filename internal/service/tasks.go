@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,7 +48,9 @@ func (s *taskService) GetTask(ctx context.Context, taskID string) (*domain.TaskS
 
 	var result interface{}
 	if resultJSON != "" {
-		json.Unmarshal([]byte(resultJSON), &result)
+		if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
+			log.Println(err)
+		}
 	}
 	return &domain.TaskStatus{Status: status, Result: result}, nil
 }
