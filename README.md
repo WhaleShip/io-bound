@@ -12,7 +12,9 @@ go run cmd/app/main.go
 
 приложение будет доступно на http://localhost:8080
 
+POST /tasks    -> создать задачу
 
+GET /tasks/:id -> получить результат задачи
 
 ### контакты
 [![Telegram Icon](https://raw.githubusercontent.com/CLorant/readme-social-icons/main/large/light/telegram.svg)](https://t.me/PanHater)
