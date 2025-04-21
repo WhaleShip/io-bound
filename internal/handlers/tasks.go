@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"context"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/whaleship/io-bound/internal/domain"
 )
 
 type taskService interface {
-	CreateTask() string
-	GetTask(id string) (*domain.TaskStatus, error)
+	CreateTask(ctx context.Context) (string, error)
+	GetTask(ctx context.Context, taskID string) (*domain.TaskStatus, error)
 }
 type taskHandler struct {
 	taskSvc taskService
@@ -18,13 +20,16 @@ func NewTaskHandler(s taskService) *taskHandler {
 }
 
 func (h *taskHandler) HandleCreateTask(c *fiber.Ctx) error {
-	taskID := h.taskSvc.CreateTask()
+	taskID, err := h.taskSvc.CreateTask(c.UserContext())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"task_id": taskID})
 }
 
 func (h *taskHandler) HandleGetTask(c *fiber.Ctx) error {
 	taskID := c.Params("id")
-	task, err := h.taskSvc.GetTask(taskID)
+	task, err := h.taskSvc.GetTask(c.UserContext(), taskID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 	}

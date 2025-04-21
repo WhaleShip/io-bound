@@ -5,14 +5,17 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/whaleship/io-bound/internal/config"
+	"github.com/whaleship/io-bound/internal/database"
 	"github.com/whaleship/io-bound/internal/handlers"
 	"github.com/whaleship/io-bound/internal/service"
 )
 
 func main() {
 	app := fiber.New()
-
-	tskSvc := service.NewTaskService()
+	cfg := config.Load()
+	rConn := database.GetInitRedis(cfg)
+	tskSvc := service.NewTaskService(rConn)
 	tskHandl := handlers.NewTaskHandler(tskSvc)
 
 	app.Use(logger.New())

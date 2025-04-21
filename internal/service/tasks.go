@@ -1,58 +1,71 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/whaleship/io-bound/internal/domain"
 )
 
 type taskService struct {
-	tasks   map[string]*domain.TaskStatus
-	tasksMu sync.RWMutex
+	redConn *redis.Client
 }
 
-func NewTaskService() *taskService {
-	return &taskService{
-		tasks: make(map[string]*domain.TaskStatus),
-	}
+func NewTaskService(client *redis.Client) *taskService {
+	return &taskService{redConn: client}
 }
 
-func (s *taskService) CreateTask() string {
+func (s *taskService) CreateTask(ctx context.Context) (string, error) {
 	taskID := uuid.New().String()
+	hkey := fmt.Sprintf("task:%s", taskID)
 
-	s.tasksMu.Lock()
-	s.tasks[taskID] = &domain.TaskStatus{Status: "pending"}
-	s.tasksMu.Unlock()
+	err := s.redConn.HSet(ctx, hkey, "status", "pending").Err()
+	if err != nil {
+		return "", err
+	}
 
-	go s.process(taskID)
+	go s.process(ctx, taskID)
 
-	return taskID
+	return taskID, nil
 }
 
-func (s *taskService) GetTask(id string) (*domain.TaskStatus, error) {
-	s.tasksMu.RLock()
-	defer s.tasksMu.RUnlock()
-
-	task, exists := s.tasks[id]
-	if !exists {
+func (s *taskService) GetTask(ctx context.Context, taskID string) (*domain.TaskStatus, error) {
+	hkey := fmt.Sprintf("task:%s", taskID)
+	vals, err := s.redConn.HGetAll(ctx, hkey).Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(vals) == 0 {
 		return nil, fmt.Errorf("task not found")
 	}
-	return task, nil
+	status := vals["status"]
+	resultJSON := vals["result"]
+
+	var result interface{}
+	if resultJSON != "" {
+		json.Unmarshal([]byte(resultJSON), &result)
+	}
+	return &domain.TaskStatus{Status: status, Result: result}, nil
 }
 
-func (s *taskService) process(id string) {
-	s.tasksMu.Lock()
-	s.tasks[id].Status = "in-progress"
-	s.tasksMu.Unlock()
+type taskResult struct {
+	Message string `json:"message"`
+}
+
+func (s *taskService) process(ctx context.Context, taskID string) {
+	hkey := fmt.Sprintf("task:%s", taskID)
+	s.redConn.HSet(ctx, hkey, "status", "in-progress")
 
 	time.Sleep(4 * time.Minute)
 
-	s.tasksMu.Lock()
-	s.tasks[id].Status = "completed"
-	s.tasks[id].Result = fiber.Map{"message": fmt.Sprintf("Task %s completed successfully", id)}
-	s.tasksMu.Unlock()
+	res := taskResult{Message: fmt.Sprintf("Task %s completed successfully", taskID)}
+	resJSON, _ := json.Marshal(res)
+	s.redConn.HMSet(ctx, hkey,
+		"status", "completed",
+		"result", string(resJSON),
+	)
 }
