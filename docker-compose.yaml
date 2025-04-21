@@ -1,0 +1,11 @@
+services:
+  auth-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.App
+    image: workmate-task:latest
+    container_name: auth-app
+    command: ./app
+    restart: always
+    ports:
+      - "8080:8080"

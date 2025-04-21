@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/whaleship/io-bound/internal/handlers"
 	"github.com/whaleship/io-bound/internal/service"
 )
@@ -14,11 +15,12 @@ func main() {
 	tskSvc := service.NewTaskService()
 	tskHandl := handlers.NewTaskHandler(tskSvc)
 
-	app.Post("/tasks", tskHandl.HandleCreateTask)
+	app.Use(logger.New())
 
+	app.Post("/tasks", tskHandl.HandleCreateTask)
 	app.Get("/tasks/:id", tskHandl.HandleGetTask)
 
-	if err := app.Listen(":3000"); err != nil {
+	if err := app.Listen(":8080"); err != nil {
 		log.Fatalln(err)
 	}
 }
